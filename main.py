@@ -109,16 +109,18 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     sess.run(init_op)
     
     #print('\n'.join([n.name for n in tf.get_default_graph().as_graph_def().node]))
-    
-        
+            
     for i in range(epochs):
-      print('epoch: ', i, end='', flush=True)  #no newline
+      print('epoch: ', i)
+      #print('epoch: ', i, end='', flush=True)  #no newline
       gen = get_batches_fn(batch_size)
-      images, labels = next(gen)
-      start = time.time()  
-      _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image:images, correct_label:labels, keep_prob:1.0})
-      end = time.time()
-      print(', loss = ', loss, ', time = ', end-start)
+      batch = 0
+      for images, labels in gen:
+        start = time.time()  
+        _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image:images, correct_label:labels, keep_prob:1.0})
+        end = time.time()
+        print('batch = ', batch, ', loss = ', loss, ', time = ', end-start)
+        batch += 1
       
 tests.test_train_nn(train_nn)
 
@@ -130,9 +132,9 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     tests.test_for_kitti_dataset(data_dir)
-    epochs = 100
+    epochs = 20
     batch_size = 32
-    learning_rate = 1e-5
+    learning_rate = 1e-4
     correct_label = tf.placeholder(tf.float32, shape = [None, image_shape[0], image_shape[1], num_classes])
     
     # Download pretrained vgg model
