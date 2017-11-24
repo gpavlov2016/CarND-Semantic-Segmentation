@@ -109,7 +109,7 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
     sess.run(init_op)
     
     #print('\n'.join([n.name for n in tf.get_default_graph().as_graph_def().node]))
-            
+    val_images, val_labels = helper.get_validation_set()
     for i in range(epochs):
       print('epoch: ', i)
       #print('epoch: ', i, end='', flush=True)  #no newline
@@ -120,7 +120,14 @@ def train_nn(sess, epochs, batch_size, get_batches_fn, train_op, cross_entropy_l
         _, loss = sess.run([train_op, cross_entropy_loss], feed_dict={input_image:images, correct_label:labels, keep_prob:1.0})
         end = time.time()
         print('batch = ', batch, ', loss = ', loss, ', time = ', end-start)
+        val_loss = sess.run([cross_entropy_loss], feed_dict={input_image:val_images, correct_label:val_labels, keep_prob:1.0})
+        print('val_loss = ', val_loss)
         batch += 1
+      
+    # Save the variables to disk.
+    #saver = tf.train.Saver()
+    #save_path = saver.save(sess, "model.ckpt")
+    #print("Model saved in file: %s" % save_path)     
       
 tests.test_train_nn(train_nn)
 
@@ -132,8 +139,8 @@ def run():
     data_dir = './data'
     runs_dir = './runs'
     tests.test_for_kitti_dataset(data_dir)
-    epochs = 20
-    batch_size = 32
+    epochs = 1
+    batch_size = 1
     learning_rate = 1e-4
     correct_label = tf.placeholder(tf.float32, shape = [None, image_shape[0], image_shape[1], num_classes])
     
@@ -144,9 +151,17 @@ def run():
     # You'll need a GPU with at least 10 teraFLOPS to train on.
     #  https://www.cityscapes-dataset.com/
 
+    #config = tf.ConfigProto(
+    #    device_count = {'GPU': 0}
+    #)
+    
+    #with tf.Session(config=config) as sess:
+   
     with tf.Session() as sess:
-        # Path to vgg model
-        vgg_path = os.path.join(data_dir, 'vgg')
+
+    #sv = tf.train.Supervisor(logdir='.', save_model_secs=60)
+    #with sv.managed_session() as sess:       
+        vgg_path = os.path.join(data_dir, 'vgg')# Path to vgg model
         # Create function to get batches
         get_batches_fn = helper.gen_batch_function(os.path.join(data_dir, 'data_road/training'), image_shape)
 
@@ -168,10 +183,15 @@ def run():
         for r in ret:
           print(r.shape)
         
+        saver = tf.train.Saver()
         # TODO: Train NN using the train_nn function
         train_nn(sess, epochs, batch_size, get_batches_fn, train_op, 
                  cross_entropy_loss, input_image,
                  correct_label, keep_prob, learning_rate)
+        
+        # Save the variables to disk.
+        save_path = saver.save(sess, "model.ckpt")
+        print("Model saved in file: %s" % save_path)
 
         # TODO: Save inference data using helper.save_inference_samples
         helper.save_inference_samples(runs_dir, data_dir, sess, image_shape, logits, keep_prob, input_image)
