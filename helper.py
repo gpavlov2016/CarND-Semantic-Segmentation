@@ -102,12 +102,11 @@ def gen_batch_function_original(data_folder, image_shape):
     return get_batches_fn
 
 
-def process_image(image, images, labels):
+def process_image(image, images, labels, image_shape):
     import numpy as np
     #image[(image[:,:,0] >100) & (image[:,:,1] > 100) & (image[:,:,2] > 100)] = 0
     #pylab.imshow(image)
     #pylab.show()
-    image_shape = (160, 576)
     image_r = scipy.misc.imresize(image, image_shape)
     #pylab.imshow(image_r)
     #label = np.zeros_like(image_r)
@@ -117,7 +116,8 @@ def process_image(image, images, labels):
     #print(threshold.shape)
     threshold = threshold.reshape(*threshold.shape, 1)
     #print (threshold.shape)
-    label = np.concatenate((threshold, np.invert(threshold)), axis=2)
+    #label = np.concatenate((threshold, np.invert(threshold)), axis=2)
+    label = [True, False]
     images.append(image_r)
     labels.append(label)
 
@@ -142,13 +142,13 @@ def gen_batch_function(data_folder, image_shape):
         vid = imageio.get_reader(filename,  'ffmpeg')
         images = []
         labels = []
-        for i in range(1): #350  
+        for i in range(350): #350  
           #print('Mean of frame %i is %1.1f' % (i, im.mean()))
           image = vid.get_data(i)
           #fig = pylab.figure()
           #fig.suptitle('image #{}'.format(num), fontsize=20)
           #pylab.imshow(image)
-          process_image(image, images, labels)
+          process_image(image, images, labels, image_shape)
 
         #random.shuffle(image_paths)
         for batch_i in range(0, len(images), batch_size):
@@ -156,7 +156,7 @@ def gen_batch_function(data_folder, image_shape):
             yield images[batch_i:batch_i+batch_size], labels[batch_i:batch_i+batch_size]
     return get_batches_fn
 
-def get_validation_set():
+def get_validation_set(image_shape):
   import pylab
   import imageio
   filename = 'toothpick2.mp4'
@@ -165,19 +165,19 @@ def get_validation_set():
   val_labels = []
   for i in range(10):
     image = vid.get_data(i)
-    process_image(image, val_images, val_labels)
+    process_image(image, val_images, val_labels, image_shape)
   return val_images, val_labels
 
-def get_inference_set():
+def get_inference_set(image_shape):
   import pylab
   import imageio
   filename = 'toothpick3.mp4'
   vid = imageio.get_reader(filename,  'ffmpeg')
   images = []
   labels = []
-  for i in range(20):
+  for i in range(100):
     image = vid.get_data(i)
-    process_image(image, images, labels)
+    process_image(image, images, labels, image_shape)
   return images
 
 
@@ -193,7 +193,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
     :return: Output for for each test image
     """
     
-    images = get_inference_set()
+    images = get_inference_set(image_shape)
     #for image_file in glob(os.path.join(data_folder, 'image_2', '*.png')):
     for i in range(len(images)):
         #image = scipy.misc.imresize(scipy.misc.imread(image_file), image_shape)
@@ -202,7 +202,7 @@ def gen_test_output(sess, logits, keep_prob, image_pl, data_folder, image_shape)
         im_softmax = sess.run(
             [tf.nn.softmax(logits)],
             {keep_prob: 1.0, image_pl: [image]})
-        im_softmax = im_softmax[0][:, 1].reshape(image_shape[0], image_shape[1])
+        im_softmax = im_softmax[0][:, 0].reshape(image_shape[0], image_shape[1])
         segmentation = (im_softmax > 0.5).reshape(image_shape[0], image_shape[1], 1)
         mask = np.dot(segmentation, np.array([[0, 255, 0, 127]]))
         mask = scipy.misc.toimage(mask, mode="RGBA")
